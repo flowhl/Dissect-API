@@ -21,5 +21,6 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 
 RUN chmod +x /app/External/Linux/r6-dissect
+RUN mkdir /app/UploadedFiles
 
 ENTRYPOINT ["dotnet", "DissectAPI.dll", "--urls", "http://*:5000"]
