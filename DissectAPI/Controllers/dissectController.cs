@@ -1,4 +1,5 @@
 ﻿using DissectAPI.Dissect;
+using DissectAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 
@@ -25,19 +26,19 @@ namespace DissectAPI.Controllers
             }
 
             // Check if any files have a length of 0
-            if(files.Any(x => x.Length <= 0))
+            if (files.Any(x => x.Length <= 0))
             {
                 return BadRequest("All files must have a length greater than 0.");
             }
 
             // Check if files count is greater than 20
-            if(files.Count > 20)
+            if (files.Count > 20)
             {
                 return BadRequest("The maximum number of files that can be uploaded is 20.");
             }
 
             // Check if any of the Files is bigger than 30mb
-            if(files.Any(x => x.Length > 30000000))
+            if (files.Any(x => x.Length > 30000000))
             {
                 return BadRequest("All files must have a size less than 30mb.");
             }
@@ -68,23 +69,45 @@ namespace DissectAPI.Controllers
             }
 
             Debug.WriteLine($"Files in Folder: {Directory.GetFiles(folderPath).Count()}");
-            
+
             Debug.WriteLine($"Total Size: {size} bytes");
 
 
             Debug.WriteLine("Starting Dissect Process");
 
-            // Run the test.exe process with the folder path as argument
+            // Run the dissect.exe process with the folder path as argument
             var replay = await DissectHelper.GetReplayAsync(folderPath);
-            if(replay != null)
-            {
-                DissectHelper.CleanUpFolder(folderPath);
-                return Ok(replay);
-            }
-            else
+
+            if (replay == null)
             {
                 return BadRequest("Failed to analyze the replay files.");
             }
+
+            DissectHelper.CleanUpFolder(folderPath);
+
+            //Build the response
+            var response = new CSVResponse();
+            response.CSV = DissectHelper.GetDissectCSV(replay);
+            response.ColumnTitles = DissectHelper.GetDissectColumnTitles();
+
+            //Metadata
+            string title = replay.Title;
+            string rounds = replay.Rounds.Count.ToString();
+            string teamA = replay.Rounds.FirstOrDefault()?.TeamA ?? "";
+            string teamB = replay.Rounds.FirstOrDefault()?.TeamB ?? "";
+            string finalScore = replay.Rounds.LastOrDefault()?.RoundScoreTeamA + ":" + replay.Rounds.LastOrDefault()?.RoundScoreTeamB;
+
+
+            response.MetaData = new Dictionary<string, string>
+            {
+                { "Title", title },
+                { "Rounds", rounds },
+                { "TeamA", teamA },
+                { "TeamB", teamB },
+                { "FinalScore", finalScore }
+            };
+
+            return Ok(response);
         }
     }
 }
